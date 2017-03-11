@@ -5,30 +5,6 @@ import cv2
 import numpy as np
 import matplotlib.image as mpimg
 
-# Code extracted from udacity
-# Define a class to receive the characteristics of each line detection
-class Line():
-    def __init__(self):
-        # was the line detected in the last iteration?
-        self.detected = False
-        # x values of the last n fits of the line
-        self.recent_xfitted = []
-        #average x values of the fitted line over the last n iterations
-        self.bestx = None
-        #polynomial coefficients averaged over the last n iterations
-        self.best_fit = None
-        #polynomial coefficients for the most recent fit
-        self.current_fit = [np.array([False])]
-        #radius of curvature of the line in some units
-        self.radius_of_curvature = None
-        #distance in meters of vehicle center from Put your deep learning skills to the test with this project! Train a deep neural network to drive a car like you!
-        self.line_base_pos = None
-        #difference in fit coefficients between last and new fits
-        self.diffs = np.array([0,0,0], dtype='float')
-        #x values for detected line pixels
-        self.allx = None
-        #y values for detected line pixels
-        self.ally = None
 
 # Read the data
 calibration_images_filenames = glob.glob('camera_cal/calibration*.jpg')
@@ -37,11 +13,13 @@ test_images_filenames = glob.glob('test_images/*.jpg')
 calibration_images = [mpimg.imread(f) for f in calibration_images_filenames]
 test_images = [mpimg.imread(f) for f in test_images_filenames]
 
+
 # Helper functions
 def to_grayscale(img):
     return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-# Compute the camera calibration matrix and distortion coefficients given a set of chessboard images.
+# Compute the camera calibration matrix and distortion coefficients
+# given a set of chessboard images.
 def get_calibration_corners(calibration_images, nx=9, ny=6):
     """
     See https://github.com/udacity/CarND-Camera-Calibration/blob/master/camera_calibration.ipynb
@@ -53,7 +31,7 @@ def get_calibration_corners(calibration_images, nx=9, ny=6):
         list, list: 3d points in real world space, 2d points in image plane
     """
     objp = np.zeros((ny*nx, 3), np.float32)
-    objp[:,:2] = np.mgrid[0:nx, 0:ny].T.reshape(-1, 2)
+    objp[:, :2] = np.mgrid[0:nx, 0:ny].T.reshape(-1, 2)
 
     # Arrays to store object points and image points from all the images.
     objpoints = [] # 3d points in real world space
@@ -88,6 +66,7 @@ def calibrate_camera(calibration_images):
                                                        img_size, None, None)
     return mtx, dist
 
+
 def _save_calibration_result():
     mtx, dist = calibrate_camera(calibration_images)
     dist_pickle = {}
@@ -95,9 +74,11 @@ def _save_calibration_result():
     dist_pickle["dist"] = dist
     pickle.dump(dist_pickle, open("calibration_data/wide_dist_pickle.p", "wb"))
 
+
 def _load_calibration_result():
     p = pickle.load(open("calibration_data/wide_dist_pickle.p", "rb"))
     return p['mtx'], p['dist']
+
 
 # Apply a distortion correction to raw images.
 # To do this we need the data we calculate in the previous section.
@@ -156,7 +137,7 @@ def mag_thresh(img, sobel_kernel=3, thresh=(0, 255)):
     binary_output[(gradmag >= thresh[0]) & (gradmag <= thresh[1])] = 1
     return binary_output
 
-def dir_threshold(img, sobel_kernel=3, thresh=(0, np.pi/2)):
+def dir_thresh(img, sobel_kernel=3, thresh=(0, np.pi/2)):
     # Define a function to threshold an image for a given range and Sobel kernel
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     # Calculate the x and y gradients
@@ -167,6 +148,13 @@ def dir_threshold(img, sobel_kernel=3, thresh=(0, np.pi/2)):
     absgraddir = np.arctan2(np.absolute(sobely), np.absolute(sobelx))
     binary_output =  np.zeros_like(absgraddir)
     binary_output[(absgraddir >= thresh[0]) & (absgraddir <= thresh[1])] = 1
+    return binary_output
+
+def hls_thresh(img, thresh=(0, 255)):
+    hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
+    s_channel = hls[:,:,2]
+    binary_output = np.zeros_like(s_channel)
+    binary_output[(s_channel > thresh[0]) & (s_channel <= thresh[1])] = 1
     return binary_output
 
 
@@ -201,7 +189,7 @@ def draw_lanes(lanes):
     cv2.fillPoly(color_warp, np.int_([pts]), (0,255, 0))
 
     # Warp the blank back to original image space using inverse perspective matrix (Minv)
-    newwarp = cv2.warpPerspective(color_warp, Minv, (image.shape[1], image.shape[0])) 
+    newwarp = cv2.warpPerspective(color_warp, Minv, (image.shape[1], image.shape[0]))
     # Combine the result with the original image
     result = cv2.addWeighted(undist, 1, newwarp, 0.3, 0)
     plt.imshow(result)
